@@ -81,7 +81,7 @@ cryptography==42.0.2
     #   randovania (setup.py)
 cycler==0.12.1
     # via matplotlib
-darkdetect==0.7.1
+darkdetect==0.8.0
     # via pyqtdarktheme
 dnspython==2.5.0
     # via eventlet
