@@ -44,6 +44,30 @@ class MSRConfiguration(BaseConfiguration):
     constant_heat_damage: int | None = dataclasses.field(metadata={"min": 0, "max": 1000, "precision": 1})
     constant_lava_damage: int | None = dataclasses.field(metadata={"min": 0, "max": 1000, "precision": 1})
 
+    # Chaos options
+    # div 1000 to get coefficient, div 10 to get %
+    superheated_probability: int = dataclasses.field(metadata={"min": 0, "max": 1000})
+    submerged_lava_probability: int = dataclasses.field(metadata={"min": 0, "max": 1000})
+    submerged_water_probability: int = dataclasses.field(metadata={"min": 0, "max": 1000})
+    submerged_acid_probability: int = dataclasses.field(metadata={"min": 0, "max": 1000})
+
     @classmethod
     def game_enum(cls) -> RandovaniaGame:
         return RandovaniaGame.METROID_SAMUS_RETURNS
+
+    def unsupported_features(self) -> list[str]:
+        result = super().unsupported_features()
+
+        if (
+            1000
+            - self.superheated_probability
+            - self.submerged_lava_probability
+            - self.submerged_water_probability
+            - self.submerged_acid_probability
+        ) < 0:
+            result.append(
+                "The probability of a room being heated, submerged in lava, water, and acid "
+                "cannot be higher than 100% combined."
+            )
+
+        return result

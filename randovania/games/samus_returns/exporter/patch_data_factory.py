@@ -477,19 +477,86 @@ class MSRPatchDataFactory(PatchDataFactory):
 
         return cc_name, area.name
 
-    def _build_area_name_dict(self) -> dict[str, dict[str, str]]:
-        # generate a 2D dictionary of (scenario, collision camera) => room name
-        all_dict: dict = {}
+    def _post_room_dict_fixes(self, room_dict: dict) -> dict:
+        # Additional room modifications for rooms not in the database
+        room: str = ""
+        # Surface
+        east: str = "s000_surface"
+        west: str = "s110_surfaceb"
+
+        room_dict[east]["collision_camera_017"] = {"room_name": "Transport to Area 8"}
+        if "custom_env_source" in room_dict[west]["collision_camera_017"]:
+            room_dict[east]["collision_camera_017"]["custom_env_source"] = room_dict[west]["collision_camera_017"][
+                "custom_env_source"
+            ]
+
+        room = room_dict[east]["collision_camera_000"]
+        if "custom_env_source" in room:
+            room_dict[west]["collision_camera_000"]["custom_env_source"] = room["custom_env_source"]
+
+        for camera in ["collision_camera_018", "collision_camera_019"]:
+            room = room_dict[east][camera]
+            room_dict[west][camera] = {"room_name": room["room_name"]}
+            if "custom_env_source" in room:
+                room_dict[west][camera]["custom_env_source"] = room["custom_env_source"]
+
+        # Area 2
+        room_dict["s025_area2b"]["collision_camera020"] = {"room_name": "High Jump Boots Chamber"}
+        room = room_dict["s025_area2b"]["collision_camera021"]
+        if "custom_env_source" in room:
+            room_dict["s025_area2b"]["collision_camera020"]["custom_env_source"] = room["custom_env_source"]
+
+        # Area 3
+        room_dict["s033_area3b"]["collision_camera_030"] = {"room_name": "Quarry Shaft"}
+        room = room_dict["s033_area3b"]["collision_camera_027"]
+        if "custom_env_source" in room:
+            room_dict["s033_area3b"]["collision_camera_030"]["custom_env_source"] = room["custom_env_source"]
+
+        # Area 4
+        room_dict["s050_area5"]["collision_camera_AfterChase_002"] = {"room_name": "Diggernaut Excavation Tunnels"}
+        room_dict["s050_area5"]["collision_camera_AfterChase_003"] = {"room_name": "Diggernaut Excavation Tunnels"}
+        room = room_dict["s050_area5"]["collision_camera_AfterChase_001"]
+        if "custom_env_source" in room:
+            room_dict["s050_area5"]["collision_camera_AfterChase_002"]["custom_env_source"] = room["custom_env_source"]
+            room_dict["s050_area5"]["collision_camera_AfterChase_003"]["custom_env_source"] = room["custom_env_source"]
+
+        return room_dict
+
+    def _create_room_dict(self) -> dict:
+        # generate a dictionary of (scenario, collision camera) => room name, room properties
+        rng = Random(self.description.get_seed_for_player(self.players_config.player_index))
+
+        room_dict: dict = {}
         for region in self.game.region_list.regions:
             scenario = region.extra["scenario_id"]
             region_dict: dict = {}
-
             for area in region.areas:
-                cc_name, area_name = self._static_room_name_fixes(scenario, area)
-                region_dict[cc_name] = area_name
-            all_dict[scenario] = region_dict
+                env_source = rng.choices(
+                    ["heat", "lava", "water", "acid", None],
+                    weights=[
+                        self.configuration.superheated_probability,
+                        self.configuration.submerged_lava_probability,
+                        self.configuration.submerged_water_probability,
+                        self.configuration.submerged_acid_probability,
+                        1000
+                        - self.configuration.superheated_probability
+                        - self.configuration.submerged_lava_probability
+                        - self.configuration.submerged_water_probability
+                        - self.configuration.submerged_acid_probability,
+                    ],
+                )[0]
 
-        return all_dict
+                cc_name, area_name = self._static_room_name_fixes(scenario, area)
+
+                region_dict[cc_name] = {"room_name": area_name}
+                # Ignore Surface West Landing Site
+                if env_source is not None and not (scenario == "s110_surfaceb" and cc_name == "collision_camera_000"):
+                    region_dict[cc_name]["custom_env_source"] = env_source
+
+                room_dict[scenario] = region_dict
+
+        final_dict = self._post_room_dict_fixes(room_dict)
+        return final_dict
 
     def _create_cosmetics(self, seed_number: int) -> dict:
         c = self.cosmetic_patches
@@ -511,8 +578,6 @@ class MSRPatchDataFactory(PatchDataFactory):
             cosmetic_patches["ammo_hud_color"] = [x / 255 for x in c.ammo_hud_color]
 
         cosmetic_patches["enable_room_name_display"] = c.show_room_names.value
-        cosmetic_patches["camera_names_dict"] = self._build_area_name_dict()
-
         cosmetic_patches["music_shuffle_dict"] = _construct_music_shuffle_dict(c.music, Random(seed_number))
 
         return cosmetic_patches
@@ -677,6 +742,7 @@ class MSRPatchDataFactory(PatchDataFactory):
                 "heat": self.configuration.constant_heat_damage,
                 "lava": self.configuration.constant_lava_damage,
             },
+            "collision_camera_attributes": self._create_room_dict(),
             "layout_uuid": str(self.players_config.get_own_uuid()),
             "enable_remote_lua": self.cosmetic_patches.enable_remote_lua or self.players_config.is_multiworld,
         }

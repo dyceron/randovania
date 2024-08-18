@@ -75,6 +75,19 @@ class MSRPresetDescriber(GamePresetDescriber):
     def format_params(self, configuration: BaseConfiguration) -> dict[str, list[str]]:
         assert isinstance(configuration, MSRConfiguration)
 
+        def describe_probability(probability: int, attribute: str) -> str | None:
+            if probability == 0:
+                return None
+
+            return f"{probability / 10:.1f}% chance of a room being {attribute}"
+
+        superheated_probability = describe_probability(configuration.superheated_probability, "superheated")
+        submerged_lava_probability = describe_probability(configuration.submerged_lava_probability, "submerged in lava")
+        submerged_water_probability = describe_probability(
+            configuration.submerged_water_probability, "submerged in water"
+        )
+        submerged_acid_probability = describe_probability(configuration.submerged_acid_probability, "submerged in acid")
+
         standard_pickups = configuration.standard_pickup_configuration
         template_strings = super().format_params(configuration)
 
@@ -144,6 +157,12 @@ class MSRPresetDescriber(GamePresetDescriber):
                 },
                 {
                     "Enable Reverse Area 8": configuration.reverse_area8,
+                },
+                {
+                    superheated_probability: superheated_probability is not None,
+                    submerged_lava_probability: submerged_lava_probability is not None,
+                    submerged_water_probability: submerged_water_probability is not None,
+                    submerged_acid_probability: submerged_acid_probability is not None,
                 },
             ],
             "Hints": [
