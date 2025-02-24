@@ -140,7 +140,7 @@ jsonschema-specifications==2023.12.1
     # via jsonschema
 kiwisolver==1.4.5
     # via matplotlib
-lupa==2.0
+lupa==2.4
     # via cave-story-randomizer
 lzokay==1.1.5
     # via retro-data-structures
